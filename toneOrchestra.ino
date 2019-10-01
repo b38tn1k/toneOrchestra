@@ -212,8 +212,6 @@ void setID(int id) {
 void assignPattern(int pat[] ) {
   for (int i = 0; i < sequenceLength; i++) {
     pattern[i] = pat[i];
-    // hack to test scale
-//    pattern[i] = random(100, 180);
   }
 }
 
