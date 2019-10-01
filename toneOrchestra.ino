@@ -27,6 +27,9 @@ bool play;
 // scale, 10 tone scale, 8 octaves probably
 int toneCount = 10;
 long scale[80];
+bool mute = true;
+int muteTime;
+bool gen = true;
 
 
 void setup() {
@@ -47,15 +50,8 @@ void setup() {
   EEPROM.write(1, !play);
   Serial.print("ID: ");
   Serial.println(ID);
-  if (ID == 1) {
-      assignPattern(pattern1);
-  } else if (ID == 2) {
-      assignPattern(pattern2);
-  } else if (ID == 3) {
-      assignPattern(pattern3);
-  } else {
-      assignPattern(pattern4);
-  }
+//  makePatterns();
+  makeBand();
   // create the scale
   createScale(); 
   // startup glitch sweep
@@ -66,34 +62,10 @@ void setup() {
     tone(tonePin, i + glitchy, 50);
   }
   noTone(tonePin);
-//  for (int i = 0; i < 80; i++) {
-//    Serial.println(scale[i]);
-//    tone(tonePin, scale[i], 200);
-//    delay(200);
-//  }
+  muteTime = (ID - 1) * 16;
 }
 
-void createScale() {
-  Serial.println("Scale Creation:");
-  int base = 68;
-  int index = 0;
-  for (long i = base; i <= (base * pow(2, 8)); i*=2) {
-    int interval = i/(2*toneCount);
-    for (int j = 0; j < toneCount; j++) {
-      int note = (i/2) + (j * interval);
-      if (index < 80) {
-        scale[index] = note;
-        Serial.print(scale[index]);
-        Serial.print("\t");
-        index++;
-      } else {
-        Serial.println("overflow");
-        break;
-      }
-    }
-    Serial.println();
-  }
-}
+
 
 void loop() {
   //timer for sequencer
@@ -120,37 +92,90 @@ void loop() {
 
   //sound selection logic. anything below 100 reserved for drums, 100+ is scale index
   if (next == true) {
-    switch(pattern[cursor]) {
-      case 0:
-        noTone(tonePin);
-        break;
-      case 1:
-        kick();
-        break;
-      case 2:
-        hiTom();
-        break;
-      case 3:
-        loTom();
-        break;
-      case 4:
-        snare();
-        break;
-      case 5:
-        hat();
-        break;
-       default:
-       int note = pattern[cursor] - 100;
-        tone(tonePin, scale[note], 50);
+    Serial.print("ID: ");
+    Serial.println(ID);
+    Serial.print("Next mute change: ");
+    Serial.println(muteTime);
+    Serial.print("Beat: ");
+    Serial.println(beatCounter);
+    Serial.print("Mute state: ");
+    Serial.println(mute);
+    if (beatCounter >= muteTime) {
+      mute = !mute;
+      if (ID == 1) {
+        if (mute == true) {
+          muteTime += 16*2;
+        } else {
+          muteTime += 16*3;
+        }
+      } else if (ID == 2) {
+        if (mute == true) {
+          muteTime += 16*2;
+        } else {
+          muteTime += 16*7;
+        }
+      } else if (ID == 3) {
+        if (mute == true) {
+          muteTime += 16*2;
+        } else {
+          muteTime += 16*4;
+        }
+        
+      } else if (ID == 4) {
+        if (mute == true) {
+          muteTime += 16*2;
+        } else {
+          muteTime += 16*6;
+        }
+      }
+      noTone(tonePin);
+    }
+    if (gen == false) {mute = false;}
+    if (mute == false) {
+      switch(pattern[cursor]) {
+        Serial.print("Event: ");
+        Serial.println(pattern[cursor]);
+        case 0:
+          noTone(tonePin);
+          break;
+        case 1:
+          kick();
+          break;
+        case 2:
+          hat();
+          break;
+        case 3:
+          snare();
+          break;
+        case 4:
+          hiTom();
+          break;
+        case 5:
+          loTom();
+          break;
+         default:
+          int note = pattern[cursor] - 100;
+          int duration;
+          if (ID == 1) {
+            duration = 20;
+          } else if (ID == 2) {
+            duration = interval;
+          }
+          tone(tonePin, scale[note], duration);
+      }
+    } else {
+      noTone(tonePin);
     }
     cursor++; // get ready for the next step in the sequence
     if (cursor >= sequenceLength) {cursor = 0;}
     next = false;
+    
     // SEQUENCE EXPERIMENTS GO HERE SORTOF
     beatCounter++; //keep track of how many beats, trigger events/ blah
-    if (beatCounter%64 == 0){randomisePercussion(200);}
-
+    if (beatCounter%64 == 0){   randomisePercussion(99, true);    }
+    if (beatCounter%96==0) {    newMelody();                      }
     //END SEQUENCE EXPERIMENTS
+    Serial.println();
   }
 }
 
@@ -158,9 +183,9 @@ bool coin() {
   return bool(random(2));
 }
 
-void randomisePercussion(int thresh) {
+void randomisePercussion(int thresh, bool preserveZeros) {
   for (int i = 0; i < sequenceLength; i++) {
-    if (pattern[i] < thresh && coin()&& coin() == true) {
+    if ((pattern[i] < thresh && coin()&& coin() == true) && !(preserveZeros == true and pattern[i] == 0)) {
       pattern[i] = int(random(0, 6));
     }
   }
@@ -209,11 +234,98 @@ void setID(int id) {
   }
 }
 
-void assignPattern(int pat[] ) {
+void newMelody() {
+  if (ID == 1) {
+    for (int i = 0; i < sequenceLength; i++) {
+      pattern[i] = int(random(140, 180));
+      if(coin() && coin() && coin()) { pattern[i] = 0;}
+    }
+  } else if (ID == 2) {
+    for (int i = 0; i < sequenceLength; i++) {
+      pattern[i] = int(random(100, 140));
+      if(coin() && coin() && coin()) { pattern[i] = 0;}
+    }
+  } else if (ID == 3) {
+    for (int i = 0; i < sequenceLength; i+=2) {
+      int val = int(random(139, 150));
+      pattern[i] = val;
+      pattern[i+1] = val;
+      if(coin() && coin() && coin()) { pattern[i] = 0;}
+      if(coin() && coin() && coin()) { pattern[i+1] = 0;}
+    }
+  }
+}
+
+void makeBand() {
+  int hi, lo;
+    if (ID == 1) {
+      hi = 180;
+      lo = 140;
+  } else if (ID == 2) {
+      hi = 140;
+      lo = 100;
+  } else if (ID == 3) {
+      hi = 150;
+      lo = 139;
+  } else {
+      hi = 4;
+      lo = 0;
+  }
+
+  for (int i = 0; i < sequenceLength; i++) {
+      pattern[i] = int(random(lo, hi));
+      if(coin() && coin() && coin()) { pattern[i] = 0;}
+  }
+  if (ID == 3) {
+    for (int i = 0; i < sequenceLength; i+=2) {
+      int val = int(random(lo, hi));
+      pattern[i] = val;
+      pattern[i+1] = val;
+      if(coin() && coin() && coin()) { pattern[i] = 0;}
+      if(coin() && coin() && coin()) { pattern[i+1] = 0;}
+  }
+    
+  }
+    
+}
+
+void makePatterns() { 
+  if (ID == 1) {
+      assignPattern(pattern1);
+  } else if (ID == 2) {
+      assignPattern(pattern2);
+  } else if (ID == 3) {
+      assignPattern(pattern3);
+  } else {
+      assignPattern(pattern4);
+  }
+}
+
+void assignPattern(int pat[] ) { 
   for (int i = 0; i < sequenceLength; i++) {
     pattern[i] = pat[i];
-    // hack to test scale
-//    pattern[i] = random(100, 180);
+  }
+}
+
+void createScale() {
+  Serial.println("Scale Creation:");
+  int base = 68;
+  int index = 0;
+  for (long i = base; i <= (base * pow(2, 8)); i*=2) {
+    int interval = i/(2*toneCount);
+    for (int j = 0; j < toneCount; j++) {
+      int note = (i/2) + (j * interval);
+      if (index < 80) {
+        scale[index] = note;
+        Serial.print(scale[index]);
+        Serial.print("\t");
+        index++;
+      } else {
+        Serial.println("overflow");
+        break;
+      }
+    }
+    Serial.println();
   }
 }
 
