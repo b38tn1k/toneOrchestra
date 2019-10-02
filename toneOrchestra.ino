@@ -27,6 +27,8 @@ bool play;
 // scale, 10 tone scale, 8 octaves probably
 int toneCount = 10;
 long scale[80];
+int freqNow;
+int target;
 
 
 void setup() {
@@ -47,15 +49,6 @@ void setup() {
   EEPROM.write(1, !play);
   Serial.print("ID: ");
   Serial.println(ID);
-  if (ID == 1) {
-      assignPattern(pattern1);
-  } else if (ID == 2) {
-      assignPattern(pattern2);
-  } else if (ID == 3) {
-      assignPattern(pattern3);
-  } else {
-      assignPattern(pattern4);
-  }
   // create the scale
   createScale(); 
   // startup glitch sweep
@@ -66,11 +59,9 @@ void setup() {
     tone(tonePin, i + glitchy, 50);
   }
   noTone(tonePin);
-//  for (int i = 0; i < 80; i++) {
-//    Serial.println(scale[i]);
-//    tone(tonePin, scale[i], 200);
-//    delay(200);
-//  }
+  addSequence();
+  freqNow = scale[pattern[0]];
+  target = scale[pattern[1]];
 }
 
 void createScale() {
@@ -119,43 +110,39 @@ void loop() {
   }
 
   //sound selection logic. anything below 100 reserved for drums, 100+ is scale index
-  if (next == true) {
-    switch(pattern[cursor]) {
-      case 0:
-        noTone(tonePin);
-        break;
-      case 1:
-        kick();
-        break;
-      case 2:
-        hiTom();
-        break;
-      case 3:
-        loTom();
-        break;
-      case 4:
-        snare();
-        break;
-      case 5:
-        hat();
-        break;
-       default:
-       int note = pattern[cursor] - 100;
-        tone(tonePin, scale[note], 50);
+  if (target > freqNow) {
+    freqNow++;
+  } else if (target < freqNow) {
+    freqNow--;
+  } else if (freqNow == target) {
+    if (next == true && beatCounter % 8 == 0) {
+      cursor++;
+      target = scale[pattern[cursor]];
     }
-    cursor++; // get ready for the next step in the sequence
-    if (cursor >= sequenceLength) {cursor = 0;}
-    next = false;
-    // SEQUENCE EXPERIMENTS GO HERE SORTOF
-    beatCounter++; //keep track of how many beats, trigger events/ blah
-    if (beatCounter%64 == 0){randomisePercussion(200);}
+  }
 
-    //END SEQUENCE EXPERIMENTS
+  if (beatCounter % ID == 0 || ID == 4){
+    tone(tonePin, freqNow, 10);
+  } else {
+    noTone(tonePin);
+  }
+  delay(5);
+  
+  if (cursor >= sequenceLength) {cursor = 0;}
+  if (next == true) {
+    beatCounter++;
+    next = false;
   }
 }
 
 bool coin() {
   return bool(random(2));
+}
+
+void addSequence() {
+  for (int i = 0; i < sequenceLength; i++) {
+    pattern[i] = random(115, 130);
+  }
 }
 
 void randomisePercussion(int thresh) {
