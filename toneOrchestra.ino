@@ -57,7 +57,7 @@ void setup() {
   // startup glitch sweep
   int offset = random(20);
   int glitchy;
-  for (int i = 10000 + offset; i > offset; i--) {
+  for (int i = 10000 + offset; i > offset; i-=10) {
     glitchy = random(-50, 50);
     tone(tonePin, i + glitchy, 50);
   }
@@ -158,10 +158,26 @@ void loop() {
           int duration;
           if (ID == 1) {
             duration = 20;
+            tone(tonePin, scale[note], duration);
+            delay(duration);
+            noTone(tonePin);
+            delay(duration);
+            tone(tonePin, scale[note], duration);
+            delay(duration);
+            noTone(tonePin);
+            delay(duration);
+            tone(tonePin, scale[note], duration); 
           } else if (ID == 2) {
             duration = interval;
+            for (double i = 0.0; i < 6.6; i+=0.4) {
+              tone(tonePin, scale[note] + 50 * sin(i), duration);
+              delay(4);
+            }
+            tone(tonePin, scale[note], duration);
+          } else if (ID == 3) {
+            duration = interval/4;
+            tone(tonePin, scale[note], interval);
           }
-          tone(tonePin, scale[note], duration);
       }
     } else {
       noTone(tonePin);
