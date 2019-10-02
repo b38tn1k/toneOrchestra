@@ -313,13 +313,16 @@ void createScale() {
   int index = 0;
   for (long i = base; i <= (base * pow(2, 8)); i*=2) {
     int interval = i/(2*toneCount);
-    for (int j = 0; j < toneCount; j++) {
+    for (int j = 0; j < toneCount/2; j++) {
       int note = (i/2) + (j * interval);
-      if (index < 80) {
+      if (index < 79) {
         scale[index] = note;
+        scale[index+1] = note;
+        Serial.print(scale[index + 1]);
+        Serial.print("\t");
         Serial.print(scale[index]);
         Serial.print("\t");
-        index++;
+        index+=2;
       } else {
         Serial.println("overflow");
         break;
