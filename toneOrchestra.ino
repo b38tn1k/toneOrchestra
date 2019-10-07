@@ -30,6 +30,8 @@ long scale[80];
 bool mute = true;
 int muteTime;
 bool gen = true;
+int muteFlagPin = 6;
+int muteFlagPins[] = {10, 9, 8};
 
 
 void setup() {
@@ -37,12 +39,15 @@ void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   for (int i = 0; i < 3; i++) {
     pinMode(masterStepPin[i], OUTPUT);
+    pinMode(muteFlagPins[i], INPUT);
   }
   pinMode(slaveStepPin, INPUT);
   pinMode(slaveStepPin, INPUT);
+  pinMode(muteFlagPin, OUTPUT);
   randomSeed(analogRead(0));
   Serial.begin(9600);
   //tempo
+  bpm = random(80, 140);
   interval = 14400.0/bpm; 
   //ID Assignment & play/pause reset toggle
   ID = EEPROM.read(0);
@@ -55,19 +60,37 @@ void setup() {
   // create the scale
   createScale(); 
   // startup glitch sweep
-  int offset = random(20);
-  int glitchy;
-  for (int i = 10000 + offset; i > offset; i-=10) {
-    glitchy = random(-50, 50);
-    tone(tonePin, i + glitchy, 50);
+//  int offset = random(20);
+//  int glitchy;
+//  for (int i = 10000 + offset; i > offset; i-=10) {
+//    glitchy = random(-50, 50);
+//    tone(tonePin, i + glitchy, 50);
+//  }
+//  noTone(tonePin);
+//  noTone(tonePin);
+//  noTone(tonePin);
+  muteTime = (ID - 1) * 32;
+  if (ID == 1 || ID == 4) {
+    muteTime = 0;
+  } else {
+    muteTime = 64;
   }
-  noTone(tonePin);
-  muteTime = (ID - 1) * 16;
 }
 
 
+double LFO;
+double lfoCounter = 0;
+int targetFreq = 0;
+int lfoDepth = 10;
 
 void loop() {
+  LFO = cos(lfoCounter) * lfoDepth;
+  lfoCounter += 0.01;
+  if (mute == false and ID == 3) {
+    tone(tonePin, targetFreq + LFO, interval);
+  } else {
+    noTone(tonePin);
+  }
   //timer for sequencer
   if (ID == 1 && play == true) {
     unsigned long currentMillis = millis();
@@ -106,13 +129,13 @@ void loop() {
         if (mute == true) {
           muteTime += 16*2;
         } else {
-          muteTime += 16*3;
+          muteTime += 16*5;
         }
       } else if (ID == 2) {
         if (mute == true) {
-          muteTime += 16*2;
+          muteTime += 2;
         } else {
-          muteTime += 16*7;
+          muteTime += 4;
         }
       } else if (ID == 3) {
         if (mute == true) {
@@ -125,13 +148,14 @@ void loop() {
         if (mute == true) {
           muteTime += 16*2;
         } else {
-          muteTime += 16*6;
+          muteTime += 16*5;
         }
       }
       noTone(tonePin);
     }
     if (gen == false) {mute = false;}
     if (mute == false) {
+      digitalWrite(muteFlagPin, LOW);
       switch(pattern[cursor]) {
         Serial.print("Event: ");
         Serial.println(pattern[cursor]);
@@ -177,10 +201,17 @@ void loop() {
           } else if (ID == 3) {
             duration = interval/4;
             tone(tonePin, scale[note], interval);
+            targetFreq = scale[note];
           }
       }
     } else {
       noTone(tonePin);
+      digitalWrite(muteFlagPin, HIGH);
+      if (ID==1) {
+        if (digitalRead(muteFlagPins[0]) == HIGH && digitalRead(muteFlagPins[1]) == HIGH && digitalRead(muteFlagPins[2]) == HIGH) {
+          shuffleSettings();
+        }
+      }
     }
     cursor++; // get ready for the next step in the sequence
     if (cursor >= sequenceLength) {cursor = 0;}
@@ -188,11 +219,18 @@ void loop() {
     
     // SEQUENCE EXPERIMENTS GO HERE SORTOF
     beatCounter++; //keep track of how many beats, trigger events/ blah
-    if (beatCounter%64 == 0){   randomisePercussion(99, true);    }
+    if (beatCounter%64 == 0 && ID == 4){   randomisePercussion(99, true);    }
     if (beatCounter%96==0) {    newMelody();                      }
     //END SEQUENCE EXPERIMENTS
     Serial.println();
   }
+}
+
+void shuffleSettings() {
+  Serial.println("SHUFFLE");
+  bpm = random(80, 140);
+  interval = 14400.0/bpm; 
+  delay(3000);
 }
 
 bool coin() {
@@ -284,7 +322,7 @@ void makeBand() {
       hi = 150;
       lo = 139;
   } else {
-      hi = 4;
+      hi = 5;
       lo = 0;
   }
 
@@ -347,4 +385,3 @@ void createScale() {
     Serial.println();
   }
 }
-
