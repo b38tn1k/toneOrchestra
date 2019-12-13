@@ -123,12 +123,12 @@ void loop () {
         if (incomingByte != 0) {
           note = lastByte;
           Serial.println(note);
-//          freq = (unsigned int)pgm_read_word(&frequency[note]);
-//          freq2 = (unsigned int)pgm_read_word(&frequency[note+12]);
-//          freq3 = (unsigned int)pgm_read_word(&frequency[note-12]);
+          freq = (unsigned int)pgm_read_word(&frequency[note]);
+          freq2 = (unsigned int)pgm_read_word(&frequency[note+12]);
+          freq3 = (unsigned int)pgm_read_word(&frequency[note-12]);
           
           //DRUMS
-          drums = false;
+          drums = true;
           if (drums == true) {
             switch (note) {
               case 36:
@@ -200,9 +200,8 @@ void loop () {
       // This should be changed for SysEx
     }
   }
-  tone(tonePin, freq);
   if (freq != 0 && drums == false) {
-//    Serial.println(freq);
+    Serial.println(freq);
 //    Serial.println(analogRamp);
 //        // HATCHLING
 //     analogWrite(8, analogRamp);
@@ -240,7 +239,7 @@ void loop () {
 //    delay(duration);
 //    tone(tonePin, freq, duration);
     //BASS
-//    tone(tonePin, freq);
+    tone(tonePin, freq);
     // MELODY HIGH
 //    tone(tonePin, freq + LFO);
   }
